@@ -15,12 +15,22 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <math.h>
+#include <errno.h>
 #include "chip_gpio.h"
 #include "chip_gpio_utils.h"
 
 //find base number for xio pins and open files allowing opening and closing of gpio pins
 int initialize_gpio_interface()
 {
+    char* path = NULL;
+    int no_err = -1;
+    int fd = -1;
+    char* base_num_str = NULL;
+    char* label_path = NULL;
+    int label_fd = -1;
+    char* correct_label = NULL;
+    char* label = NULL;
+	
     //Initialize pin identities
     if (initialize_gpio_pin_names() < 0)
     { fprintf(stderr, "Warning: could not initialize pin label names\n"); return -1; }
@@ -30,84 +40,62 @@ int initialize_gpio_interface()
 
     for (int i = 0; i < ((int) pow(10,BASE_NUM_MAX_DIGITS)-1); i++)
     {
-        char* path = get_gpiochip_path(i, "/base");
+        path = get_gpiochip_path(i, "/base");
         
         if (access(path, F_OK) >= 0) //if file exists
         {
             //simple error checking
-            int no_err = 1;
+            no_err = 1;
 
             //get a file descriptor for the base file
-            int fd = open(path, O_RDONLY);
-            if (fd < 0) { fprintf(stderr, "Could not open %s\n", path); no_err = 0; }
+            fd = open(path, O_RDONLY);
+            if (fd < 0)
+            {
+                fprintf(stderr, "Could not open %s: %s\n", path, strerror(errno)); 
+                no_err = 0;
+            }
             
             //create a buffer for the base number
-            char base_num_str[BASE_NUM_MAX_DIGITS+1] = {'\0'};
+            //char base_num_str[BASE_NUM_MAX_DIGITS+1] = {'\0'};
+			base_num_str = (char*) calloc(1, BASE_NUM_MAX_DIGITS+1);
             
             //read the base number from the file
             if (read(fd, &base_num_str, BASE_NUM_MAX_DIGITS) < 0)
             {
-                fprintf(stderr, "Could not get XIO base number from %s\n", path);
+                fprintf(stderr, "Could not get XIO base number from %s: %s\n", path,
+                        strerror(errno));
                 no_err = 0;
             }
             
             //get a file descriptor for the label file
-            char* label_path = get_gpiochip_path(i, "/label");
-            int label_fd = open(label_path, O_RDONLY);
+            label_path = get_gpiochip_path(i, "/label");
+            label_fd = open(label_path, O_RDONLY);
             if (label_fd < 0)
             {
-                fprintf(stderr, "Could not open %s\n", label_path);
+                fprintf(stderr, "Could not open %s: %s\n", label_path, strerror(errno));
                 no_err = 0;
             }
            
             //create a buffer for the label
-            char* correct_label = XIO_CHIP_LABEL; //this is the label for the xio gpio chip
-            char label[sizeof(correct_label)];
+            correct_label = XIO_CHIP_LABEL; //this is the label for the xio gpio chip
+            //char label[sizeof(correct_label)];
+            label = (char*) calloc(1, sizeof(correct_label));
             
             //read the label from the file
             //note: watch out for possible endoffile or linefeed after label giving a
             //      false negative
             if (read(label_fd, &label, sizeof(correct_label)-1) < 0)
-            { fprintf(stderr, "Could not read label from %s", label_path); no_err = 0;}
+            {
+                fprintf(stderr, "Could not read label from %s: %s", label_path,
+                        strerror(errno));
+                no_err = 0;
+            }
 
             //if the label is correct and we didn't get any errors, set the base number and
             //get the number of xio pins
             if (strncmp(label, correct_label, sizeof(correct_label)) == 0 && no_err)
             {
                 xiopin_base = atoi(base_num_str);
-
-                //Get the number of XIO pins from the ngpio file
-                //  This is unimplemented until I figure out a better way to handle
-                //  the possibility of the CHIP having more or less XIO pins. There's
-                //  no documented way to get the total number of gpio pins, or the pin
-                //  where U13 ends, or the arbitrary pin label representing where XIO-P0
-                //  starts. As it's currently implemented it seems recompilation will be
-                //  necessary no matter what, so for now, edit chip_gpio_pin_defs.h if
-                //  changes need to be made.
-                /*char* ngpio_path = get_gpiochip_path(i, "/ngpio");
-                int ngpio_fd = open(ngpio_path, O_RDONLY);
-                
-                if (ngpio_fd < 0)
-                { fprintf(stderr, "Warning: could not open %s\n", ngpio_path); }
-                
-                char ngpio_str[BASE_NUM_MAX_DIGITS+1] = {'\0'}; //probably a safe assumption
-                
-                if (read(ngpio_fd, &ngpio_str, BASE_NUM_MAX_DIGITS) < 0)
-                {
-                    //just in case we don't get a number for some reason
-                    fprintf(stderr, 
-                        "Warning: could not get number of xio pins from %s; assuming 8.\n",
-                        ngpio_path);
-                    NUM_XIO_U14_PINS = 8; // The current version of the CHIP has 8 XIO pins
-                }
-                
-                else // if we are able to get the number of xio pins, which we always should
-                {
-                    NUM_XIO_U14_PINS = atoi(ngpio_str);
-                }
-
-                free(ngpio_path);
-                close(ngpio_fd);*/
 
                 //since we have our base number, we can break the loop now
                 close(fd); //doesn't really matter if this fails, it won't be used again
@@ -172,12 +160,16 @@ int init_gpio_inf()
 //open a GPIO pin by writing its chip-assigned number to the export file
 int open_gpio_pin(int pin)
 {
+    char* pin_str = NULL;
+    int pin_kern = 0;
+    char* path = NULL;
+	
     //get kernel-recognized pin number
-    char* pin_str = get_kern_num_str(pin);
+    pin_str = get_kern_num_str(pin);
     
     //error-checking: see if the pin was already open before this was called
-    int pin_kern = get_kern_num(pin);
-    char* path = get_gpio_path(pin_kern, "/value");
+    pin_kern = get_kern_num(pin);
+    path = get_gpio_path(pin_kern, "/value");
     
     if (access(path, F_OK) >= 0 || is_gpio_pin_open(pin)) //if file exists
     {
@@ -209,11 +201,11 @@ int open_gpio_pin(int pin)
 }
 
 //Convenience function
-int open_gpio_pin_u(int U14, int pin)
+/*int open_gpio_pin_u(int U14, int pin)
 {
     if (U14 < 0 || U14 > 1) { fprintf(stderr, "Invalid value %d for U14 option.", U14); }
     return open_gpio_pin(pin+(U14_OFFSET*U14));
-}
+}*/
 
 //Convenience function
 int open_gpio_pin_n(char* name)
@@ -223,77 +215,6 @@ int open_gpio_pin_n(char* name)
     return open_gpio_pin(pin);
 }
 
-//set a GPIO pin's direction (input/output) by writing "in" or "out" to its direction file
-int set_gpio_dir(int pin, int out)
-{
-    //open the direction file in the pin directory to write the direction
-    int pin_kern = get_kern_num(pin);
-    char* path = get_gpio_path(pin_kern, "/direction");
-    int fd = open(path, O_WRONLY);
-
-    //err check
-    if (fd < 0)
-    {
-        fprintf(stderr, "Could not open pin %d (%d)'s direction\n", pin, pin_kern);
-        free(path);
-        close(fd);
-        return -1;
-    }
-
-    //GPIO_DIR_OUT = 1
-    //GPIO_DIR_IN = 0
-
-    if (out)
-    {
-        if (write(fd, "out", sizeof("out")) < 0)
-        {
-            fprintf(stderr, "Failed to set %s to %s\n", path, "out");
-            free(path);
-            close(fd);
-            return -1;
-        }
-    }
-    else
-    {
-        if (write(fd, "in", sizeof("in")) < 0)
-        {
-            fprintf(stderr, "Failed to set %s to %s\n", path, "in");
-            close(fd);
-            free(path);
-            return -1;
-        }
-    }
-
-    if (close(fd) < 0)
-    {
-        fprintf(stderr, "Could not close pin %d (%d)'s direction\n", pin, pin_kern);
-        free(path);
-        close(fd);
-        return -1;
-    }
-
-    //free mem used by get_gpio_path
-    free(path);
-    close(fd);
-
-    return out;
-}
-
-//Convenience function
-int set_gpio_dir_u(int U14, int pin, int out)
-{
-    if (U14 < 0 || U14 > 1) { fprintf(stderr, "Invalid value %d for U14 option.", U14); }
-    return set_gpio_dir(pin+(U14_OFFSET*U14), out);
-}
-
-//Convenience function
-int set_gpio_dir_n(char* name, int out)
-{
-    int pin = get_pin_from_name(name);
-    if (pin < 0) { fprintf(stderr, "Could not find pin number for pin %s\n", name); }
-    return set_gpio_dir(pin, out);
-}
-
 //Convenience function to call open and set_dir in one line
 int setup_gpio_pin(int pin, int out)
 {
@@ -301,11 +222,11 @@ int setup_gpio_pin(int pin, int out)
     return set_gpio_dir(pin, out);
 }
 
-int setup_gpio_pin_u(int U14, int pin, int out)
+/*int setup_gpio_pin_u(int U14, int pin, int out)
 {
     if (open_gpio_pin_u(U14, pin) < 0) { return -1; }
     return set_gpio_dir_u(U14, pin, out);
-}
+}*/
 
 int setup_gpio_pin_n(char* name, int out)
 {
@@ -319,11 +240,11 @@ int is_gpio_pin_open(int pin)
     return is_pin_open[pin];
 }
 
-int is_gpio_pin_open_u(int U14, int pin)
+/*int is_gpio_pin_open_u(int U14, int pin)
 {
     if (U14 < 0 || U14 > 1) { fprintf(stderr, "Invalid value %d for U14 option.", U14); }
     return is_gpio_pin_open(pin+(U14_OFFSET*U14));
-}
+}*/
 
 //Convenience function
 int is_gpio_pin_open_n(char* name)
@@ -337,19 +258,21 @@ int is_gpio_pin_open_n(char* name)
 //Note: init_gpio() MUST be called first
 int get_gpio_xio_base()
 {
-	return xiopin_base;
+    return xiopin_base;
 }
 
 //Close a GPIO pin by writing its chip-assigned number to the unexport file
 int close_gpio_pin(int pin)
 {
+    char* pin_str = NULL;
+	
     if (!is_pin_open[pin])
     {
         fprintf(stderr,
             "Warning: attempting to close a pin (%d) not managed by this program.\n", pin);
     }
     
-    char* pin_str = get_kern_num_str(pin);
+    pin_str = get_kern_num_str(pin);
         
     if (write(pin_fd[GPIO_CLOSE_FD], pin_str, strlen(pin_str)) < 0)
     {
@@ -368,11 +291,11 @@ int close_gpio_pin(int pin)
 }
 
 //Convenience function
-int close_gpio_pin_u(int U14, int pin)
+/*int close_gpio_pin_u(int U14, int pin)
 {
     if (U14 < 0 || U14 > 1) { fprintf(stderr, "Invalid value %d for U14 option.", U14); }
     return close_gpio_pin(pin+(U14_OFFSET*U14));
-}
+}*/
 
 //Convenience function
 int close_gpio_pin_n(char* name)
@@ -394,7 +317,7 @@ int get_gpio_pin_num_from_name(char* name)
 //Same thing, shorter name
 int get_gpio_num(char* name)
 {
-	return get_gpio_pin_num_from_name(name);
+    return get_gpio_pin_num_from_name(name);
 }
 
 //This will close only pins that were opened by the program that evoked it
@@ -435,5 +358,5 @@ int terminate_gpio_interface()
 //Convenience function
 int term_gpio_inf()
 {
-	return terminate_gpio_interface();
+    return terminate_gpio_interface();
 }

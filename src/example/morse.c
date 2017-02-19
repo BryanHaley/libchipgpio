@@ -16,6 +16,12 @@
 
 int main (int argc, char **argv)
 {
+	int led_power_pin = -1; //gpio pin connected to an led
+	int button_pin = -1; //gpio pin connected to a button
+	int* morse_message = NULL; //array of 0 and 1 values for short or long pulses
+    int short_pulse = -1; //how long to hold a short pulse for
+    int long_pulse = -1; //how long to hold a long pulse for
+	
     //You must call initialize_gpio_interface before use. Sub-zero values are errors.
     if (initialize_gpio_interface() < 0)
     { fprintf(stderr, "GPIO Error. Shutting down.\n"); return -1; }
@@ -24,8 +30,8 @@ int main (int argc, char **argv)
     //access. This is not recommended, however, as it may interfere with other programs.
 
     //This is the ideal way to declare and open pins
-    int lcd_power_pin = get_gpio_pin_num_from_name("XIO-P7");
-    if (setup_gpio_pin(lcd_power_pin, GPIO_DIR_OUT) < 0)
+    led_power_pin = get_gpio_pin_num_from_name("XIO-P7");
+    if (setup_gpio_pin(led_power_pin, GPIO_DIR_OUT) < 0)
     { fprintf(stderr, "GPIO Error. Shutting down.\n"); return -1; }
 
     /*
@@ -50,7 +56,7 @@ int main (int argc, char **argv)
     */
 
     //NOTE: LCD pins require pull-up resistors. A 10k Ohm Resistor connected to 3.3V works
-    int button_pin = get_gpio_pin_num_from_name("LCD-VSYNC");
+    button_pin = get_gpio_pin_num_from_name("LCD-VSYNC");
     //setup_gpio_pin is a convenience function that calls open_gpio_pin and set_gpio_dir
     //You may do so separately if you please.
     if (open_gpio_pin(button_pin) < 0)
@@ -59,7 +65,7 @@ int main (int argc, char **argv)
     { fprintf(stderr, "GPIO Error. Shutting down.\n"); return -1; }
     
     //This is "SOS" in morse code - three shorts, three longs, three shorts
-    int morse_message[] = {0,0,0,1,1,1,0,0,0};
+    morse_message = {0,0,0,1,1,1,0,0,0};
 
     printf("Waiting for user to press the button.\n");
     
@@ -75,8 +81,8 @@ int main (int argc, char **argv)
     //      this for the sake of brevity.
 
     //Decide on how long a short and a long will be for morse code
-    int short_pulse = 500000; // half a second with usleep()
-    int long_pulse = 1; // one second with sleep()
+    short_pulse = 500000; // half a second with usleep()
+    long_pulse = 1; // one second with sleep()
 
     printf("Hold the button to stop\n");
 
@@ -86,12 +92,12 @@ int main (int argc, char **argv)
         for (int i = 0; i < sizeof(morse_message); i++)
         {
             //Power the LED to send the signal
-            set_gpio_val(lcd_power_pin, 1);
+            set_gpio_val(led_power_pin, 1);
             if (!morse_message[i]) { usleep(short_pulse); }
             else { sleep(long_pulse); }
 
             //Wait for the length of a short pulse before next pulse
-            set_gpio_val(lcd_power_pin, 0);
+            set_gpio_val(led_power_pin, 0);
             usleep(short_pulse);
 
             //allow the user to break early
@@ -101,7 +107,7 @@ int main (int argc, char **argv)
     }
     
     //You may manually close pins
-    //close_gpio_pin(lcd_power_pin);
+    //close_gpio_pin(led_power_pin);
     //Or automatically close all pins opened by open_gpio_pin
     //autoclose_gpio_pins();
 

@@ -56,14 +56,14 @@ static inline int decode_r8_pin(char multiple, int offset)
 //find the kernel-recognized number for a pin based on the label numbers
 static inline int get_kern_num(int pin) //U14 pins = label number + U14_OFFSET
 {
+    //if -1 gets returned, an error occured
+    int pin_kern = -1;
+	
     if (pin < FIRST_PIN || pin > NUM_PINS)
     {
         fprintf(stderr, "Tried to access non-existant pin %d\n", pin);
         return -1;
     }
-
-    //if -1 gets returned, an error occured
-    int pin_kern = -1;
     
     //  CHIP creates directories for GPIO files based on a number assigned to each
     //  GPIO pin. For XIO pins, the number is the offset from the first XIO pin
@@ -150,7 +150,7 @@ static inline char* get_gpiochip_path(int kern_pin, char* file)
 
 static inline int get_pin_from_name(char* name)
 {
-	//Compare name to list defined in xio_pin_defs.h
+    //Compare name to list defined in xio_pin_defs.h
     int pin = -1;
 
     for (int i = 0; i <= NUM_PINS; i++)

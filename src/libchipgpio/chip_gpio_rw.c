@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <math.h>
+#include <errno.h>
 #include "chip_gpio.h"
 #include "chip_gpio_utils.h"
 
@@ -24,7 +25,11 @@
 //  1 and 0.
 int set_gpio_val(int pin, int val)
 {
-    int pin_kern = get_kern_num(pin);
+    int pin_kern = -1;
+    char* path = NULL;
+    int fd = -1;
+	
+    pin_kern = get_kern_num(pin);
     
     //Digital pins can only be on or off
     if (val < 0 || val > 1)
@@ -34,8 +39,8 @@ int set_gpio_val(int pin, int val)
     }
     
     //Open the value file in the pin directory and write the requested value
-    char* path = get_gpio_path(pin_kern, "/value");
-    int fd = open(path, O_RDWR);
+    path = get_gpio_path(pin_kern, "/value");
+    fd = open(path, O_RDWR);
     
     //free memory used by get_gpio_path
     free(path);
@@ -43,7 +48,8 @@ int set_gpio_val(int pin, int val)
 
     if (fd < 0)
     {
-        fprintf(stderr, "Could not open pin %d (%d) for writing\n", pin, pin_kern);
+        fprintf(stderr, "Could not open pin %d (%d) for writing: %s\n", 
+                pin, pin_kern, strerror(errno));
         close(fd);
         return -1;
     }
@@ -53,7 +59,8 @@ int set_gpio_val(int pin, int val)
         if (write(fd, "1", 1) < 0) //ASCII character '1' aka 0x31
         {
             fprintf(stderr,
-                "Could not write value %d to pin %d (%d)\n", val, pin, pin_kern);
+                    "Could not write value %d to pin %d (%d): %s\n", 
+                    val, pin, pin_kern, strerror(errno));
             close(fd);
             return -1;
         }
@@ -63,7 +70,8 @@ int set_gpio_val(int pin, int val)
         if (write(fd, "0", 1) < 0) //ASCII character '0' aka 0x30
         {
             fprintf(stderr,
-                "Could not write value %d to pin %d (%d)\n", val, pin, pin_kern);
+                    "Could not write value %d to pin %d (%d): %s\n", 
+                    val, pin, pin_kern, strerror(errno));
             close(fd);
             return -1;
         }
@@ -71,23 +79,20 @@ int set_gpio_val(int pin, int val)
 
     if (close(fd) < 0)
     {
-        fprintf(stderr, "Could not close pin %d (%d) for writing\n", pin, pin_kern);
-        close(fd);
+        fprintf(stderr, "Could not close pin %d (%d) for writing: %s\n", 
+                pin, pin_kern, strerror(errno));
         return -1;
     }
-
-    //close the file descriptor
-    close(fd);
 
     return val;
 }
 
 //Convenience function
-int set_gpio_val_u(int U14, int pin, int val)
+/*int set_gpio_val_u(int U14, int pin, int val)
 {
     if (U14 < 0 || U14 > 1) { fprintf(stderr, "Invalid value %d for U14 option.", U14); }
     return set_gpio_val(pin+(U14_OFFSET*U14), val);
-}
+}*/
 
 //Convenience function
 int set_gpio_val_n(char* name, int val)
@@ -115,14 +120,16 @@ int read_gpio_val(int pin)
 
     if (fd < 0)
     {
-        fprintf(stderr, "Could not open pin %d (%d) for reading\n", pin, pin_kern);
+        fprintf(stderr, "Could not open pin %d (%d) for reading: %s\n", 
+                pin, pin_kern, strerror(errno));
         close(fd);
         return -1;
     }
 
     if (read(fd, &val, 1) < 0)
     {
-        fprintf(stderr, "Could not read from pin %d (%d)\n", pin, pin_kern);
+        fprintf(stderr, "Could not read from pin %d (%d): %s\n", 
+                pin, pin_kern, strerror(errno));
         close(fd);
         return -1;
     }
@@ -139,23 +146,20 @@ int read_gpio_val(int pin)
 
     if (close(fd) < 0)
     {
-        fprintf(stderr, "Could not close pin %d (%d) for reading\n", pin, pin_kern);
-        close(fd);
-        return -1;
+        fprintf(stderr, "Could not close pin %d (%d) for reading: %s\n", 
+                pin, pin_kern, strerror(errno));
+        //return -1; try to continue anyway
     }
-
-    //close the file descriptor
-    close(fd);
 
     return val;
 }
 
 //Convenience function
-int read_gpio_val_u(int U14, int pin)
+/*int read_gpio_val_u(int U14, int pin)
 {
     if (U14 < 0 || U14 > 1) { fprintf(stderr, "Invalid value %d for U14 option.", U14); }
     return read_gpio_val(pin+(U14_OFFSET*U14));
-}
+}*/
 
 //Convenience function
 int read_gpio_val_n(char* name)
@@ -163,4 +167,130 @@ int read_gpio_val_n(char* name)
     int pin = get_pin_from_name(name);
     if (pin < 0) { fprintf(stderr, "Could not find pin number for pin %s\n", name); }
     return read_gpio_val(pin);
+}
+
+//set a GPIO pin's direction (input/output) by writing "in" or "out" to its direction file
+int set_gpio_dir(int pin, int out)
+{
+    //open the direction file in the pin directory to write the direction
+    int pin_kern = get_kern_num(pin);
+    char* path = get_gpio_path(pin_kern, "/direction");
+    int fd = open(path, O_WRONLY);
+    
+    //free the mem used by get_gpio_path
+    free(path);
+    path = NULL;
+
+    //err check
+    if (fd < 0)
+    {
+        fprintf(stderr, "Could not open pin %d (%d)'s direction: %s\n", 
+                pin, pin_kern, strerror(errno));
+        close(fd);
+        return -1;
+    }
+
+    //GPIO_DIR_OUT = 1
+    //GPIO_DIR_IN = 0
+
+    if (out)
+    {
+        if (write(fd, "out", sizeof("out")) < 0)
+        {
+            fprintf(stderr, "Failed to set %s to %s: %s\n", path, "out", strerror(errno));
+            close(fd);
+            return -1;
+        }
+    }
+    else
+    {
+        if (write(fd, "in", sizeof("in")) < 0)
+        {
+            fprintf(stderr, "Failed to set %s to %s: %s\n", path, "in", strerror(errno));
+            close(fd);
+            return -1;
+        }
+    }
+
+    if (close(fd) < 0)
+    {
+        fprintf(stderr, "Could not close pin %d (%d)'s direction: %s\n", 
+                pin, pin_kern, strerror(errno));
+        return -1;
+    }
+
+    return out;
+}
+
+//Convenience function
+/*int set_gpio_dir_u(int U14, int pin, int out)
+{
+    if (U14 < 0 || U14 > 1) { fprintf(stderr, "Invalid value %d for U14 option.", U14); }
+    return set_gpio_dir(pin+(U14_OFFSET*U14), out);
+}*/
+
+//Convenience function
+int set_gpio_dir_n(char* name, int out)
+{
+    int pin = get_pin_from_name(name);
+    if (pin < 0) { fprintf(stderr, "Could not find pin number for pin %s\n", name); }
+    return set_gpio_dir(pin, out);
+}
+
+int get_gpio_dir(int pin)
+{
+    int out = -1;
+    
+    //open the direction file in the pin directory to write the direction
+    int pin_kern = get_kern_num(pin);
+    char* path = get_gpio_path(pin_kern, "/direction");
+    int fd = open(path, O_WRONLY);
+    
+    //free the mem used by get_gpio_path
+    free(path);
+    path = NULL;
+
+    //err check
+    if (fd < 0)
+    {
+        fprintf(stderr, "Could not open pin %d (%d)'s direction: %s\n", 
+                pin, pin_kern, strerror(errno));
+        close(fd);
+        return -1;
+    }
+
+    //read the value from /direction
+    if (read(fd, &out, 1) < 0)
+    {
+        fprintf(stderr, "Could not read from pin %d (%d): %s\n", 
+                pin, pin_kern, strerror(errno));
+        close(fd);
+        return -1;
+    }
+
+    if (out != '0' && out != '1')
+    {
+        fprintf(stderr, "Invalid direction read from pin %d (%d)\n", pin, pin_kern);
+        close(fd);
+        return -1;
+    }
+
+    //Subtract by 0x30 to get numerical value
+    out -= '0';
+
+    if (close(fd) < 0)
+    {
+        fprintf(stderr, "Could not close pin %d (%d)'s direction: %s\n", 
+                pin, pin_kern, strerror(errno));
+        return -1;
+    }
+
+    return out;
+}
+
+int get_gpio_dir_n(char* name)
+{
+    int pin = get_pin_from_name(name);
+    if (pin < 0) { fprintf(stderr, "Could not find pin number for pin %s\n", name); }
+    return get_gpio_dir(pin);
 }

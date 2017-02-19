@@ -1,6 +1,6 @@
 # libchipgpio
 Dynamic C Library for interfacing with the GPIO pins on the C.H.I.P. mini computer.
-One of the main focuses behind this library is to provide "forward-compatibility" with possible future revisions of the CHIP. Accessible pins can be added, removed, and modified without breaking compatibility with programs written to run on older revisions of the CHIP.
+One of the main focuses behind this library is to provide "forwards-compatibility" with possible future revisions of the CHIP. Accessible pins can be added, removed, and modified without breaking compatibility with programs written to run on older revisions of the CHIP.
 
 BUILDING
 --------
@@ -30,7 +30,7 @@ BUILDING
 USAGE
 -----
 
-Preamble: this library does require some mindfulness from the coder using it to maintain forward compatibility. Please read *and follow* the best practices section.
+Preamble: this library does require some mindfulness from the coder using it to maintain forward compatibility. Please read *and follow* the best practices section, lest the major advantage of using this library is lost.
 
 libchipgpio provides the following functions to interface with the CHIP's GPIO pins. Include `chip_gpio.h` and link `lchipgpio` to use them.
 
@@ -127,7 +127,7 @@ BEST PRACTICES
   
     + `if (setup_gpio_pin(start_button_pin, GPIO_DIR_IN) < 0)`
       
-      `{ fprintf(stderr, "Encountered GPIO on startup. Shutting down.”); return -1; }`
+      `{ fprintf(stderr, "Encountered GPIO error on startup. Shutting down.”); return -1; }`
        
    + libchipgpio functions will generate meaningful error messages on stderr on their own, so it may be more helpful to specify *where* the error occurred than the error itself.
    
@@ -150,7 +150,22 @@ TODO
   
   + I'm currently awaiting a shipment containing an i2c/spi LCD screen to test with.
 
-  + In the future, I’ll also look into making expanding GPIO via an i2c GPIO chip as easy as possible (ideally, integrating with the libchipgpio interface as if they were on the CHIP itself). It would be useful for those using VGA/HDMI adapters.
+  + In the future, I’ll also look into making expanding GPIO via an i2c GPIO chip as easy as possible (ideally, integrating with the libchipgpio interface as if they were on the CHIP itself). It would be especially useful for those using VGA/HDMI adapters.
+  
++ Confirm support for the CHIP Pro.
+
+  + Theoritically it should already be supported, but I have no way of knowing for sure until I get one. There are probably a few pins on the Pro that don't exist on the CHIP, and currently I've only defined the CHIP's pins in `chip_gpio_pin_defs.h`.
+  
++ Add a feature utilizing a separate thread to monitor specified GPIO pins to trigger callback functions when a value has changed.
+
+  + Callbacks on a separate thread would be much more convenient for polling things like buttons and switches.
+  
+BUY ME A COFFEE
+---------------
+
+If you found this library useful at all, I'd appreciate it ;)
+
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/BryanHaley)
 
 OPEN SOURCE LICENSE
 -------------------

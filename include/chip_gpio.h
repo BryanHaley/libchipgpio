@@ -42,31 +42,27 @@ extern int initialize_gpio_interface();
 //  number.
 
 extern int open_gpio_pin(int pin); 
-//extern int open_gpio_pin_u(int U14, int pin);
 extern int open_gpio_pin_n(char* pin_name);
 
 extern int set_gpio_dir(int pin, int out);
-//extern int set_gpio_dir_u(int U14, int pin, int out);
 extern int set_gpio_dir_n(char* pin_name, int out);
 
+extern int get_gpio_dir(int pin);
+extern int get_gpio_dir_n(char* name);
+
 extern int setup_gpio_pin(int pin, int out);
-//extern int setup_gpio_pin_u(int U14, int pin, int out);
 extern int setup_gpio_pin_n(char* pin_name, int out);
 
 extern int set_gpio_val(int pin, int val);
-//extern int set_gpio_val_u(int U14, int pin, int val);
 extern int set_gpio_val_n(char* pin_name, int val);
 
 extern int read_gpio_val(int pin);
-//extern int read_gpio_val_u(int U14, int pin);
 extern int read_gpio_val_n(char* pin_name);
 
 extern int close_gpio_pin(int pin);
-//extern int close_gpio_pin_u(int U14, int pin);
 extern int close_gpio_pin_n(char* pin_name);
 
 extern int is_gpio_pin_open(int pin);
-//extern int is_gpio_pin_open_u(int U14, int pin);
 extern int is_gpio_pin_open_n(char* pin_name);
 
 extern int get_gpio_pin_num_from_name(char* pin_name);

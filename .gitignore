@@ -32,5 +32,6 @@
 *.dSYM/
 *.su
 
-# Mac OS text editor backup
+# Mac OS garbage
 ._*
+.DS_Store

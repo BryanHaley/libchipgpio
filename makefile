@@ -21,6 +21,7 @@ ODIR=./bin
 OBJS=$(ODIR)/chip_gpio_oc.o $(ODIR)/chip_gpio_rw.o
 EXE=$(ODIR)/libchipgpio.so
 EXEDIR=./lib
+DELMACGARB=-find . -name ._\* -delete
 
 lib: mkbin $(OBJS)
 	$(CC) $(LFLAGS) -o $(EXE) $(OBJS)
@@ -58,3 +59,4 @@ uninstall:
 clean:
 	-rm -r $(EX_EXE) $(ODIR) $(EXEDIR)/*
 	-rm ./example
+	$(DELMACGARB)
