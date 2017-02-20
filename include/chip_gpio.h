@@ -24,6 +24,8 @@
 #define GPIO_PIN_HIGH 1
 #define GPIO_PIN_OUT GPIO_DIR_OUT
 #define GPIO_PIN_IN GPIO_DIR_IN
+#define GPIO_ERR -1
+#define GPIO_OK 0
 #define NUM_LCD_U13_PINS LCD_U13_LAST_PIN-LCD_U13_FIRST_PIN+1
 #define NUM_LCD_U14_PINS LCD_U14_LAST_PIN-LCD_U13_FIRST_PIN+1
 #define LCD_U14_FIRST_PIN_ALL LCD_U14_FIRST_PIN+U14_OFFSET
@@ -59,6 +61,9 @@ extern int set_gpio_val_n(char* pin_name, int val);
 extern int read_gpio_val(int pin);
 extern int read_gpio_val_n(char* pin_name);
 
+extern int toggle_gpio_val(int pin);
+extern int toggle_gpio_val_n(char* pin_name);
+
 extern int close_gpio_pin(int pin);
 extern int close_gpio_pin_n(char* pin_name);
 
@@ -66,6 +71,7 @@ extern int is_gpio_pin_open(int pin);
 extern int is_gpio_pin_open_n(char* pin_name);
 
 extern int get_gpio_pin_num_from_name(char* pin_name);
+extern int get_gpio_num(char* pin_name);
 
 extern int get_gpio_xio_base();
 

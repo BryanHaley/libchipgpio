@@ -12,6 +12,7 @@
 #define CHIP_GPIO_UTILS_H
 
 #include <string.h>
+#include <stdlib.h>
 
 #define GPIO_OPEN_FD 0
 #define GPIO_CLOSE_FD 1
@@ -29,7 +30,6 @@ static unsigned char* is_pin_open;
 // Quick method to determine the number of digits in an int
 static inline int num_places (int n) 
 {
-    if (n < 0) n = (n == INT_MIN) ? INT_MAX : -n;
     if (n < 10) return 1;
     if (n < 100) return 2;
     if (n < 1000) return 3;
@@ -59,7 +59,7 @@ static inline int get_kern_num(int pin) //U14 pins = label number + U14_OFFSET
     //if -1 gets returned, an error occured
     int pin_kern = -1;
 	
-    if (pin < FIRST_PIN || pin > NUM_PINS)
+    if (pin < FIRST_PIN || pin > NUM_PINS+FIRST_PIN)
     {
         fprintf(stderr, "Tried to access non-existant pin %d\n", pin);
         return -1;
@@ -109,9 +109,10 @@ static inline int get_kern_num(int pin) //U14 pins = label number + U14_OFFSET
 static inline char* get_kern_num_str(int pin)
 {
     int pin_kern = get_kern_num(pin);
+    int pin_kern_len = num_places(pin_kern)+1;
     //create a buffer of the number of digits in pin_kern + 1 for a null terminator
-    char* pin_str = (char*) calloc(1, (num_places(pin)+1)*sizeof(char));
-    sprintf(pin_str, "%d", pin_kern);
+    char* pin_str = (char*) calloc(pin_kern_len, sizeof(char));
+    snprintf(pin_str, pin_kern_len, "%d", pin_kern);
 
     return pin_str;
 }
@@ -119,20 +120,19 @@ static inline char* get_kern_num_str(int pin)
 //get the full path to a gpio file using its chip-assigned number
 static inline char* get_gpio_related_path(char* dir, int kern_pin, char* file)
 {
+    int pin_str_len = num_places(kern_pin)+1;
+    int pin_path_full_len = -1;
     //create string of the kernel pin number
-    char pin_str[num_places(kern_pin)];
-    sprintf(pin_str, "%d", kern_pin);
+    char pin_str[pin_str_len];
+    snprintf(pin_str, pin_str_len, "%d", kern_pin);
 
     //concat a string that leads to the value file for the gpio pin
     //char path_beg[] = "/sys/class/gpio/gpio";
-    char* path_beg = dir;
-    char* path_end = file;
-    char* pin_path_full = (char*) calloc(1, (strlen(path_beg)+num_places(kern_pin)+
-                                            strlen(path_end)) * sizeof(char));
-    strcat(pin_path_full, path_beg);
-    strcat(pin_path_full, pin_str);
-    strcat(pin_path_full, path_end);
+    pin_path_full_len = strlen(dir)+strlen(pin_str)+strlen(file)+1;
+    char* pin_path_full = (char*) calloc(pin_path_full_len, sizeof(char));
     
+    snprintf(pin_path_full, pin_path_full_len, "%s%s%s", dir, pin_str, file);
+
     return pin_path_full;
 }
 
@@ -153,13 +153,34 @@ static inline int get_pin_from_name(char* name)
     //Compare name to list defined in xio_pin_defs.h
     int pin = -1;
 
-    for (int i = 0; i <= NUM_PINS; i++)
+    for (int i = FIRST_PIN; i < NUM_PINS+FIRST_PIN; i++)
     {
-        if (strncmp(name, p_ident[i].name, strlen(p_ident[i].name)-1) == 0)
+        if (strncmp(name, p_ident[i].name, strlen(name)) == 0)
         { pin = i; }
     }
 
     return pin;
+}
+
+static inline int does_pin_exist(int pin)
+{
+    if (pin < FIRST_PIN || pin > NUM_PINS+FIRST_PIN)
+    { return 0; } //pin does not exist
+
+    return 1; //pin exists
+}
+
+//Convenience error checking form of does_pin_exist
+// Note: unlike does pin exist, returning 0 means it DOES exist
+static inline int check_if_pin_exists(int pin)
+{
+    if (!does_pin_exist(pin))
+    {
+        fprintf(stderr, "Pin %d does not exist.", pin);
+        return -1; //pin does not exist
+    }
+
+    return 0; //pin exists
 }
 
 #endif

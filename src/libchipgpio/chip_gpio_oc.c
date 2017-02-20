@@ -57,10 +57,10 @@ int initialize_gpio_interface()
             
             //create a buffer for the base number
             //char base_num_str[BASE_NUM_MAX_DIGITS+1] = {'\0'};
-			base_num_str = (char*) calloc(1, BASE_NUM_MAX_DIGITS+1);
+	    base_num_str = (char*) calloc(BASE_NUM_MAX_DIGITS, sizeof(int));
             
             //read the base number from the file
-            if (read(fd, &base_num_str, BASE_NUM_MAX_DIGITS) < 0)
+            if (read(fd, base_num_str, BASE_NUM_MAX_DIGITS) < 0)
             {
                 fprintf(stderr, "Could not get XIO base number from %s: %s\n", path,
                         strerror(errno));
@@ -79,12 +79,14 @@ int initialize_gpio_interface()
             //create a buffer for the label
             correct_label = XIO_CHIP_LABEL; //this is the label for the xio gpio chip
             //char label[sizeof(correct_label)];
-            label = (char*) calloc(1, sizeof(correct_label));
+            label = (char*) calloc(strlen(correct_label)+1, sizeof(char));
             
+            label[strlen(correct_label)] = '\0'; //make sure label is null terminated
+
             //read the label from the file
             //note: watch out for possible endoffile or linefeed after label giving a
             //      false negative
-            if (read(label_fd, &label, sizeof(correct_label)-1) < 0)
+            if (read(label_fd, label, strlen(correct_label)) < 0)
             {
                 fprintf(stderr, "Could not read label from %s: %s", label_path,
                         strerror(errno));
@@ -93,13 +95,15 @@ int initialize_gpio_interface()
 
             //if the label is correct and we didn't get any errors, set the base number and
             //get the number of xio pins
-            if (strncmp(label, correct_label, sizeof(correct_label)) == 0 && no_err)
+            if (strncmp(label, correct_label, strlen(correct_label)) == 0 && no_err)
             {
                 xiopin_base = atoi(base_num_str);
 
                 //since we have our base number, we can break the loop now
                 close(fd); //doesn't really matter if this fails, it won't be used again
                 free(path);
+                free(base_num_str);
+                free(label);
                 path = NULL; //make sure we don't free this twice somehow
                 break;
             }
@@ -122,7 +126,7 @@ int initialize_gpio_interface()
     }
 
     //for convenience, 0 is not used
-    is_pin_open = (unsigned char*) calloc(1, (NUM_PINS+1)*sizeof(char));
+    is_pin_open = (unsigned char*) calloc(1, (NUM_PINS+FIRST_PIN)*sizeof(char));
 
     //GPIO_CLOSE_FD should always be the last file descriptor in the array
     for (int i = 0; i <= GPIO_CLOSE_FD; i++)
@@ -171,11 +175,17 @@ int open_gpio_pin(int pin)
     pin_kern = get_kern_num(pin);
     path = get_gpio_path(pin_kern, "/value");
     
-    if (access(path, F_OK) >= 0 || is_gpio_pin_open(pin)) //if file exists
+    if (access(path, F_OK) >= 0) //if file exists
     {
         fprintf(stderr,
             "Warning: pin %d (%s) may already be open. This will likely cause issues.\n",
             pin, pin_str);
+    }
+
+    if (is_gpio_pin_open(pin))
+    {
+        free(pin_str);
+        return GPIO_OK;
     }
 
     free(path);
@@ -185,8 +195,9 @@ int open_gpio_pin(int pin)
     if (write(pin_fd[GPIO_OPEN_FD], pin_str, strlen(pin_str)) < 0)
     {
         fprintf(stderr,
-            "Could not open pin %d (%s). Did you call gpio_init(), and are you root?\n",
+            "Could not open pin %d (%s). Did you call gpio_init(), and are you root?: ",
             pin, pin_str);
+        perror("");
         free(pin_str);
         return -1;
     }
@@ -323,7 +334,7 @@ int get_gpio_num(char* name)
 //This will close only pins that were opened by the program that evoked it
 int autoclose_gpio_pins()
 {
-    for (int i = 1; i < NUM_PINS+1; i++) //pins start at 1
+    for (int i = FIRST_PIN; i < NUM_PINS+FIRST_PIN; i++)
     { if (is_gpio_pin_open(i)) { close_gpio_pin(i); } }
     
     return 0;

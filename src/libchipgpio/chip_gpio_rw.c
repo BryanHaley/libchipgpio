@@ -54,34 +54,22 @@ int set_gpio_val(int pin, int val)
         return -1;
     }
 
-    if (val)
-    { 
-        if (write(fd, "1", 1) < 0) //ASCII character '1' aka 0x31
-        {
-            fprintf(stderr,
-                    "Could not write value %d to pin %d (%d): %s\n", 
-                    val, pin, pin_kern, strerror(errno));
-            close(fd);
-            return -1;
-        }
-    }
-    else
-    { 
-        if (write(fd, "0", 1) < 0) //ASCII character '0' aka 0x30
-        {
-            fprintf(stderr,
-                    "Could not write value %d to pin %d (%d): %s\n", 
-                    val, pin, pin_kern, strerror(errno));
-            close(fd);
-            return -1;
-        }
+    char val_ch = val + '0';
+
+    if (write(fd, &val_ch, sizeof(char)) < 0)
+    {
+        fprintf(stderr,
+                "Could not write value %d to pin %d (%d): %s\n", 
+                val, pin, pin_kern, strerror(errno));
+        close(fd);
+        return -1;
     }
 
     if (close(fd) < 0)
     {
         fprintf(stderr, "Could not close pin %d (%d) for writing: %s\n", 
                 pin, pin_kern, strerror(errno));
-        return -1;
+        //return -1; //try to continue anyway
     }
 
     return val;
@@ -169,6 +157,22 @@ int read_gpio_val_n(char* name)
     return read_gpio_val(pin);
 }
 
+//Call read and send the opposite value to write
+int toggle_gpio_val(int pin)
+{
+    int val = read_gpio_val(pin);
+    if (val < GPIO_PIN_LOW || val > GPIO_PIN_HIGH) { return GPIO_ERR; }
+    return set_gpio_val(pin, !val);
+}
+
+//Convenience function
+int toggle_gpio_val_n(char* name)
+{
+    int pin = get_pin_from_name(name);
+    if (pin < GPIO_OK) { return GPIO_ERR; }
+    return toggle_gpio_val(pin);
+}
+
 //set a GPIO pin's direction (input/output) by writing "in" or "out" to its direction file
 int set_gpio_dir(int pin, int out)
 {
@@ -216,7 +220,7 @@ int set_gpio_dir(int pin, int out)
     {
         fprintf(stderr, "Could not close pin %d (%d)'s direction: %s\n", 
                 pin, pin_kern, strerror(errno));
-        return -1;
+        //return -1; //try to continue anyway
     }
 
     return out;

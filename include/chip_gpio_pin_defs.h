@@ -103,14 +103,14 @@ typedef struct
     int off; 
     //Use of the following is not recommended, but may be necessary.
     int hard_coded_kern_pin;
-} pin_identifier;
+} pin_identifier_t;
 
 //  Using hard_coded_kern_pin would not be kernel-agnostic. However, it appears only
 //  XIO pins get new kernel identifier numbers with each kernel version, so it may
 //  not be an issue. R8 (LCD and CSID) pins do not depend on the kernel, for example.
 //  Regardless, avoid using hard_coded_kern_pin if at all possible.
 
-pin_identifier p_ident[NUM_PINS+1];
+pin_identifier_t p_ident[NUM_PINS+FIRST_PIN];
 
 //This is called in initialize_gpio_interface() before anything else
 static int initialize_gpio_pin_names()
@@ -121,7 +121,7 @@ static int initialize_gpio_pin_names()
                                  // the correct directory containing the xio base
                                  // number, so we just need to know this beforehand.
 
-    for (int i = 0; i < NUM_PINS+1; i++)
+    for (int i = 0; i < NUM_PINS+FIRST_PIN; i++)
     {
 	//Unused pins will all have this info
         p_ident[i].name = PIN_UNUSED;
