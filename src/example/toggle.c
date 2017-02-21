@@ -62,7 +62,7 @@ int main (int argc, char **argv)
     *        setup_gpio_pin(on_button, GPIO_DIR_IN); //error checking recommended
     *
     *   However, !!DO NOT!! send pin numbers directly to open_gpio_pin or any other method.
-    *   (E.g. !DO NOT! do setup_gpio_pin_n(37, GPIO_DIR_IN) or any other literal number)
+    *   (E.g. !DO NOT! do setup_gpio_pin(37, GPIO_DIR_IN) or any other literal number)
     *
     *   The library is designed so that if the pinout of the CHIP were ever changed or
     *   expanded, the library can be modified and recompiled independently of the program.
@@ -84,8 +84,21 @@ int main (int argc, char **argv)
     register_callback_func(led_power_pin, &led_power_print, NULL);
     register_callback_func(button_pin, &led_power_on, NULL);
     //With _flip_func, the function is only called when the pin's value changes, then
-    //changes back. This is most useful with buttons (think of it as an on_release trigger)
+    //changes back. This is most useful with buttons.
+    // Think of it as an on_release or on_press (but never both) trigger.
     register_callback_flip_func(toggle_pin, &led_power_toggle, NULL);
+
+    // By default, the 'flipped_value' of a pin is the opposite of whatever the pin reads
+    // when you register the flip callback. This may be undesirable - for example, if a
+    // user is pressing a button on startup, the flipped value would be the opposite of
+    // what is expected. Therefore, you may explicity force the flipped value.
+    //Note: Calling this after start -may- result in unexpected behavior.
+    set_callback_flip_value(toggle_pin, CALLBACK_ON_PRESS);
+    // Assuming pull-up resistors are used (as the xio pins do), an unpressed button's
+    // flip value will be CALLBACK_ON_RELEASE by default.
+    // Use the _PULLDOWN variants of the two former if you're using pull-down resistors.
+    // If you're not using buttons, GPIO_PIN_HIGH and GPIO_PIN_LOW are desirable
+    // alternatives that will more clearly indicate your intentions.
     
     //Start polling the pins on a separate thread
     start_callback_manager();

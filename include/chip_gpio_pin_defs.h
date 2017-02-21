@@ -13,6 +13,10 @@
 #ifndef CHIP_GPIO_PIN_DEFS_H
 #define CHIP_GPIO_PIN_DEFS_H
 
+//Probably unwise to change these two
+#define GPIO_OK 0
+#define GPIO_ERR -1
+
 //Some definitions that detail what the CHIP pinout is like in a way we can interpret
 
 #define FIRST_PIN          1 // First pin is 1 since that's how it's labeled. 0 is
@@ -30,6 +34,9 @@
 //Use LCD_U14_(FIRST/LAST)_PIN_ALL for pre-baked U14 offset
 #define LCD_U14_FIRST_PIN 27
 #define LCD_U14_LAST_PIN  38 //39, 40 is GND
+
+#define GPIO_SYSFS_PATH "/sys/class/gpio/gpio"
+#define GPIOCHIP_SYSFS_PATH "/sys/class/gpio/gpiochip"
 
 //If the multiplier of a pin is this, that means it's definitely not an R8 pin
 #define GPIO_UNUSED '\0'
@@ -101,14 +108,22 @@ typedef struct
     char* name;
     char mult;
     int off; 
-    //Use of the following is not recommended, but may be necessary.
-    int hard_coded_kern_pin;
+    //Function pointer so you may find the kernel number of a pin however you please
+    void* func;
+    void* arg;
+    int hard_coded_kern_pin; //DEPRACATED; use function pointer instead
 } pin_identifier_t;
 
-//  Using hard_coded_kern_pin would not be kernel-agnostic. However, it appears only
-//  XIO pins get new kernel identifier numbers with each kernel version, so it may
-//  not be an issue. R8 (LCD and CSID) pins do not depend on the kernel, for example.
-//  Regardless, avoid using hard_coded_kern_pin if at all possible.
+// There is a chance the kernel identifier for a pin may be calculated by an algorithm
+// not present in this library in the future. To combat this, you may provide a function
+// to calculate this yourself. If a function is provided, it takes precendence over any
+// over method of finding the kernel number that may apply to it.
+// Signature of function pointers to find kernel identifiers:
+// int foo(int pin, void* arg);
+// The function should return the kernel identifier number. The argument pin is the pin
+// number as #defined above. The argument arg is a void pointer you can set yourself.
+// Set p_ident[bar].func to the address of your function, and arg to a pointer leading to
+// any data you may need. Use a struct if you need arg to contain multiple variables.
 
 pin_identifier_t p_ident[NUM_PINS+FIRST_PIN];
 
@@ -126,8 +141,10 @@ static int initialize_gpio_pin_names()
 	//Unused pins will all have this info
         p_ident[i].name = PIN_UNUSED;
         p_ident[i].mult =  GPIO_UNUSED;
-        p_ident[i].off  = -1;
-        p_ident[i].hard_coded_kern_pin = -1;
+        p_ident[i].off  = GPIO_ERR;
+        p_ident[i].func = NULL;
+        p_ident[i].arg = NULL;
+        p_ident[i].hard_coded_kern_pin = GPIO_ERR;
     }
 	
     // Here, we define the name (by which users of this library should access

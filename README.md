@@ -23,14 +23,20 @@ BUILDING
   
 4. (Optional) Run the example program
 
-  `sudo ./example`
+  `sudo ./morse_example`
   
-  + Connect an LED to pin XIO-P7 and a button to LCD-VSYNC (with a pull-up resistor) for the example program.
+  + Connect an LED to pin XIO-P7 and a button to LCD-VSYNC (with a pull-up resistor) for this example.
+  
+  `sudo ./toggle_example`
+  
+  + Connect an LED to pin XIO-P7, a button to XIO-P5, and another button to XIO-P3 for this example.
   
 USAGE
 -----
 
-Preamble: this library does require some mindfulness from the coder using it to maintain forward compatibility. Please read *and follow* the best practices section, lest the major advantage of using this library is lost.
+###chip_gpio.h
+
+Preamble: this library does require some mindfulness from the coder using it to maintain forward compatibility. Please read *and follow* the best practices section, lest the major advantage of using this library is lost. See `src/example/morse.c` for an implementation.
 
 libchipgpio provides the following functions to interface with the CHIP's GPIO pins. Include `chip_gpio.h` and link `lchipgpio` to use them.
 
@@ -96,7 +102,89 @@ libchipgpio provides the following functions to interface with the CHIP's GPIO p
     
 + `_n(char* name` variants
   
-  + Most of the functions above have a variant with the suffix `_n` and accept a pin name string instead of an integer (e.g. `open_gpio_pin("XIO-P0");`). This is compliant with the best practices, however it comes at a performance cost (the pin name string must be compared to a list of pin name strings, which can be costly if done in a loop). Might be useful when grabbing user input or something, but otherwise, stick to the method outlined in the best practices section.
+  + Functions accepting an `int pin` argument have a variant with the suffix `_n` that accepts a pin name string instead of an integer (e.g. `open_gpio_pin_n("XIO-P0");`). This is compliant with the best practices, however it comes at a performance cost (the pin name string must be compared to a list of pin name strings, which can be costly if done in a loop). Might be useful when grabbing user input or something, but otherwise, stick to the method outlined in the best practices section.
+  
+###chip_gpio_callback_manager.h
+
+Preamble: Follow the best practices for this interface just as you would the one above it. See `src/example/toggle.c` for an implementation.
+
+To supplement the general libchipgpio interface, `chip_gpio_callback_manager.h` is provided to easily create and manipulate callback functions that are invoked when a pin changes value. The pin values are polled on a separate thread, so that your application may run concurrently.
+
++ `struct pin_change_t`
+
+  + A simple struct containing two integers, `pin` and `new_val`. A `pin_change_t` variable is passed to a callback function when it is invoked.
+  
++ `initialize_callback_manager()`
+  
+  + Must be called before anything else.
+  
+  + `init_callback_manager()`
+  
+    + Same as above, except a shorter (less-explicit) name.
+    
++ `start_callback_manager()`
+
+  + Begin polling GPIO pin values. Generally, you'll want to register your callback functions *before* calling this if possible.
+  
++ `register_callback_func(int pin, void* func, void* arg)`
+
+  + Any time the GPIO pin `pin` changes value, `func` is invoked and passed a `pin_change_t` and `arg`. Note that `arg` can be a pointer to any data you wish; it is for your use. Keep in mind each GPIO pin can only have one callback function; registering a second callback function to a pin will simply overwrite the original.
+  
+  + Callback functions should have the following signature: `int foo(pin_change_t, void*)` and return a success or failure code (such as `GPIO_OK` or `GPIO_ERR`).
+  
++ `register_callback_flip_func(int pin, void* func, void* arg)`
+
+  + Slight modification on `register_callback_func`. Callbacks registered using this are only invoked when the pin changes value, then changes back to its original value (e.g. rather than invoking the callback function when a button is pressed then again when the button is released, the callback function is invoked only once the button is released after being pressed).
+  
+  + A GPIO pin is assumed to be in its default state when the callback function is registered. When it changes value, it is in a state of being flipped. Once it changes back to its default state, the callback function is invoked, and the GPIO pin is no longer in a state of being flipped.
+  
++ `set_callback_flip_value(int pin, int val)`
+  
+  + By default, `pin`'s value is read when the callback is registered (which becomes its default state), and the "flip" value is set to the opposite of that. However, this may be undesirable; if for example a pin is connected to a button and the button is pressed down (perhaps by an impatient user) when the callback function is registered, the flip value will be the opposite of what's expected. So, it may be necessary to force a flip value.
+  
+  + When using buttons, pass one of the following values as an argument for `val`:
+    
+    + `CALLBACK_ON_PRESS`
+      
+      + The callback function is invoked when the button is pressed, but not when it is released.
+    
+    + `CALLBACK_ON_RELEASE`
+    
+      + The callback function is invoked when the button is released, but not when it is pressed.
+      
+    + Use the `_PULLDOWN` variants if you are using a pull down resistor instead. Otherwise, it is assumed you are using pull-up resistors, or an XIO pin (which have built-in pull-up resistors).
+        
+  + When not using buttons, your intentions are more clear when using `GPIO_PIN_HIGH` and `GPIO_PIN_LOW`.
+  
++ `remove_callback_func(int pin)`
+
+  + Deregisters the callback function for a pin.
+  
++ `pause_callback_manager()`
+
+  + Stop polling the GPIO pins without deregistering all callback functions.
+  
++ `unpause_callback_manager()`
+
+  + Resume polling the GPIO pins.
+  
++ `terminate_callback_manager()`
+
+  + *MUST* be called when you're finished with callback functions. This deregisters all callback functions and frees up memory. If you need to work with the callback manager again afterwards, it must initialized again.
+  
+  + `term_callback_manager()`
+
+    + Same as above, except a shorter (less-explicit) name.
+    
++ `set_callback_polling_delay(int new_delay)`
+
+  + Optionally, you may set a delay between every 'round' of polling GPIO pins. After polling all pins, the callback manager simply invokes `usleep` with `new_delay` before polling all pins from the beginning again.
+  
+  + Anything less than 1 is considered no delay.
+  
++ `_n(char* name` variants
+  
+  + Like in the `chip_gpio.h` interface, you may supply a pin's name instead using `_n` variants of any function with the parameter `int pin`.
     
 BEST PRACTICES
 --------------
@@ -156,14 +244,14 @@ TODO
 
   + Theoritically it should already be supported, but I have no way of knowing for sure until I get one. There are probably a few pins on the Pro that don't exist on the CHIP, and currently I've only defined the CHIP's pins in `chip_gpio_pin_defs.h`.
   
-+ Add a feature utilizing a separate thread to monitor specified GPIO pins to trigger callback functions when a value has changed.
++ Finished ~~Add a feature utilizing a separate thread to monitor specified GPIO pins to trigger callback functions when a value has changed.~~
 
-  + Callbacks on a separate thread would be much more convenient for polling things like buttons and switches.
+  +~~Callbacks on a separate thread would be much more convenient for polling things like buttons and switches.~~
   
 BUY ME A COFFEE
 ---------------
 
-If you found this library useful at all, I'd appreciate it ;)
+If you found this library useful at all, I'd appreciate it :-)
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/BryanHaley)
 

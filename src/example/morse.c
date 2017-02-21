@@ -47,7 +47,7 @@ int main (int argc, char **argv)
     *        setup_gpio_pin(on_button, GPIO_DIR_IN); //error checking recommended
     *
     *   However, !!DO NOT!! send pin numbers directly to open_gpio_pin or any other method.
-    *   (E.g. !DO NOT! do setup_gpio_pin_n(37, GPIO_DIR_IN) or any other plain number)
+    *   (E.g. !DO NOT! do setup_gpio_pin(37, GPIO_DIR_IN) or any other plain number)
     *
     *   The library is designed so that if the pinout of the CHIP were ever changed or
     *   expanded, the library can be modified and recompiled independently of the program.

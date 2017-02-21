@@ -57,12 +57,12 @@ static inline int decode_r8_pin(char multiple, int offset)
 static inline int get_kern_num(int pin) //U14 pins = label number + U14_OFFSET
 {
     //if -1 gets returned, an error occured
-    int pin_kern = -1;
+    int pin_kern = GPIO_ERR;
 	
     if (pin < FIRST_PIN || pin > NUM_PINS+FIRST_PIN)
     {
         fprintf(stderr, "Tried to access non-existant pin %d\n", pin);
-        return -1;
+        return GPIO_ERR;
     }
     
     //  CHIP creates directories for GPIO files based on a number assigned to each
@@ -76,7 +76,15 @@ static inline int get_kern_num(int pin) //U14 pins = label number + U14_OFFSET
     //  calculated by decoding (see https://docs.getchip.com/chip.html#gpio-types)
     //  the pin's label as seen in the Allwinner R8 documentation (goo.gl/cQLRuW,
     //  pages 18-20). I believe Pin 17 is also usable; this may be a typo on the
-	//	official CHIP documentation.
+    //  official CHIP documentation.
+
+    //If a pointer to a custom function for finding the kernel number exists, that
+    //takes precedence over anything else.
+    if (p_ident[pin].func) //if the function pointer isn't null
+    {
+        int (*pin_kern_func)(int, void*) = p_ident[pin].func;
+        pin_kern = pin_kern_func(pin, p_ident[pin].arg);
+    }
 
     //Reference: https://docs.getchip.com/chip.html#gpio
     if (pin >= XIO_U14_FIRST_PIN_ALL && pin <= XIO_U14_LAST_PIN_ALL)
@@ -110,27 +118,28 @@ static inline char* get_kern_num_str(int pin)
 {
     int pin_kern = get_kern_num(pin);
     int pin_kern_len = num_places(pin_kern)+1;
-    //create a buffer of the number of digits in pin_kern + 1 for a null terminator
+    //create a buffer of the number of digits in pin_kern + a null terminator
     char* pin_str = (char*) calloc(pin_kern_len, sizeof(char));
     snprintf(pin_str, pin_kern_len, "%d", pin_kern);
 
+    //it's your responsibility to free this when it's returned to you
     return pin_str;
 }
 
 //get the full path to a gpio file using its chip-assigned number
 static inline char* get_gpio_related_path(char* dir, int kern_pin, char* file)
 {
-    int pin_str_len = num_places(kern_pin)+1;
-    int pin_path_full_len = -1;
+    int pin_str_len = num_places(kern_pin)+1; //number of digits + null terminator
+    int pin_path_full_len = GPIO_ERR;
     //create string of the kernel pin number
     char pin_str[pin_str_len];
     snprintf(pin_str, pin_str_len, "%d", kern_pin);
 
     //concat a string that leads to the value file for the gpio pin
-    //char path_beg[] = "/sys/class/gpio/gpio";
     pin_path_full_len = strlen(dir)+strlen(pin_str)+strlen(file)+1;
     char* pin_path_full = (char*) calloc(pin_path_full_len, sizeof(char));
     
+    //this is way better than using strncpy
     snprintf(pin_path_full, pin_path_full_len, "%s%s%s", dir, pin_str, file);
 
     return pin_path_full;
@@ -139,23 +148,23 @@ static inline char* get_gpio_related_path(char* dir, int kern_pin, char* file)
 //Convenience function for accessing files in GPIO pin directories
 static inline char* get_gpio_path(int kern_pin, char* file)
 {
-    return get_gpio_related_path("/sys/class/gpio/gpio", kern_pin, file);
+    return get_gpio_related_path(GPIO_SYSFS_PATH, kern_pin, file);
 }
 
 //Convenience function for accessing files in GPIO chip directories
 static inline char* get_gpiochip_path(int kern_pin, char* file)
 {
-    return get_gpio_related_path("/sys/class/gpio/gpiochip", kern_pin, file);
+    return get_gpio_related_path(GPIOCHIP_SYSFS_PATH, kern_pin, file);
 }
 
 static inline int get_pin_from_name(char* name)
 {
     //Compare name to list defined in xio_pin_defs.h
-    int pin = -1;
+    int pin = GPIO_ERR;
 
     for (int i = FIRST_PIN; i < NUM_PINS+FIRST_PIN; i++)
     {
-        if (strncmp(name, p_ident[i].name, strlen(name)) == 0)
+        if (strncmp(name, p_ident[i].name, strlen(name)) == GPIO_OK)
         { pin = i; }
     }
 
@@ -177,10 +186,22 @@ static inline int check_if_pin_exists(int pin)
     if (!does_pin_exist(pin))
     {
         fprintf(stderr, "Pin %d does not exist.", pin);
-        return -1; //pin does not exist
+        return GPIO_ERR; //pin does not exist
     }
 
-    return 0; //pin exists
+    return GPIO_OK; //pin exists
+}
+
+//Convenience error checking method
+static inline int is_valid_value(int val, int pin)
+{
+    if (val < GPIO_PIN_LOW || val > GPIO_PIN_HIGH)
+    {
+        fprintf(stderr, "Invalid pin (%d) value: %d", pin, val);
+        return GPIO_ERR;
+    }
+
+    return GPIO_OK;
 }
 
 #endif

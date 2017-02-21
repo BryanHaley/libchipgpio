@@ -12,9 +12,13 @@ Ver 1.0.0:
 
 Ver 1.1.0:
 * Added callbacks
+* Added "flip" callback (on press or on release)
+* Added way to identify pins using a custom function (via function pointer)
 * Added toggle function in chip_gpio interface
 * Refactored functions (moved variable declarations to the top and some other cleaning)
 * Better error messages (print out errno)
 * Added forgotten get_gpio_num(char*) to chip_gpio interface
 * Fixed pointer issues in initialize_gpio_interface
 * Fixed handling of some strings (mainly in chip_gpio_utils.h)
+* Removed most magic numbers
+* Added new example using callbacks

@@ -10,6 +10,11 @@
 #ifndef CHIP_GPIO_CALLBACK_MANAGER_H
 #define CHIP_GPIO_CALLBACK_MANAGER_H
 
+#define CALLBACK_ON_PRESS 1
+#define CALLBACK_ON_RELEASE 0
+#define CALLBACK_ON_PRESS_PULLDOWN 0
+#define CALLBACK_ON_RELEASE_PULLDOWN 1
+
 typedef struct
 {
     int pin;
@@ -30,6 +35,9 @@ extern int register_callback_func_n(char* pin_name, void* func, void* arg);
 
 extern int register_callback_flip_func(int pin, void* func, void* arg);
 extern int register_callback_flip_func_n(char* pin_name, void* func, void* arg);
+
+extern int set_callback_flip_value(int pin, int val);
+extern int set_callback_flip_value_n(char* pin_name, int val);
 
 extern int remove_callback_func(int pin);
 extern int remove_callback_func_n(char* pin_name);
