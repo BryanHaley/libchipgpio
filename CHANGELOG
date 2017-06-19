@@ -8,7 +8,7 @@ VERSION NUMBER: MAJOR.MINOR.BUGFIX
     Higher importance revisions may contain changes that would otherwise be in a lower priority revision (e.g. a MINOR revision may contain bugfixes or a MAJOR revision may add features or et cetera).
 
 Ver 1.0.0:
-* Initial release to Github, library functional
+* Initial release to Github, library functional.
 
 Ver 1.1.0:
 * Added callbacks
