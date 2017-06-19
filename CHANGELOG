@@ -1,0 +1,24 @@
+CURRENT_VERSION: 1.1.0
+
+Legend:
+VERSION NUMBER: MAJOR.MINOR.BUGFIX
+    BUGFIX revisions do not add or remove features; only fix bugs.
+    MINOR revisions may add or change features, but should not break compatiblity.
+    MAJOR revisions may break compatibility.
+    Higher importance revisions may contain changes that would otherwise be in a lower priority revision (e.g. a MINOR revision may contain bugfixes or a MAJOR revision may add features or et cetera).
+
+Ver 1.0.0:
+* Initial release to Github, library functional.
+
+Ver 1.1.0:
+* Added callbacks
+* Added "flip" callback (on press or on release)
+* Added way to identify pins using a custom function (via function pointer)
+* Added toggle function in chip_gpio interface
+* Refactored functions (moved variable declarations to the top and some other cleaning)
+* Better error messages (print out errno)
+* Added forgotten get_gpio_num(char*) to chip_gpio interface
+* Fixed pointer issues in initialize_gpio_interface
+* Fixed handling of some strings (mainly in chip_gpio_utils.h)
+* Removed most magic numbers
+* Added new example using callbacks
