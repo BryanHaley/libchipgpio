@@ -62,6 +62,10 @@ all: lib morse_example toggle_example
 install:
 	cp $(EXE) /usr/lib/
 	cp $(IDIR)/* /usr/include
+	gzip -c ./docs/libchipgpio.3 > ./docs/libchipgpio.3.gz
+	cp ./docs/libchipgpio.3.gz /usr/share/man/man3/libchipgpio.3.gz
+	mandb
+	man 3 libchipgpio
 
 uninstall:
 	-rm /usr/lib/libchipgpio.so
@@ -72,4 +76,5 @@ uninstall:
 clean:
 	-rm -r $(ODIR) $(EXEDIR)/*
 	-rm $(MORSE_EXE) $(TOGGLE_EXE)
+	-rm ./docs/libchipgpio.3.gz
 	$(DELMACGARB)

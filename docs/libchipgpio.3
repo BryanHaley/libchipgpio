@@ -1,38 +1,10 @@
-# libchipgpio
-Dynamic C Library for interfacing with the GPIO pins on the C.H.I.P. mini computer.
-One of the main focuses behind this library is to provide "forwards-compatibility" with possible future revisions of the CHIP. Accessible pins can be added, removed, and modified without breaking compatibility with programs written to run on older revisions of the CHIP.
+.TH libchipgpio 3 "February 2016" "v1.1.0"
+.SH NAME
 
-BUILDING
---------
+libchipgpio - a simple wrapper for accessing sysfs gpio pins within a C program.
+.SH DESCRIPTION
 
-1. Install essential packages
-
-  `sudo apt-get install build-essential git`
-
-2. Clone this repository
-
-  `git clone https://github.com/BryanHaley/libchipgpio.git`
-
-3. Build and install
-
-  `cd libchipgpio`
-  
-  `make all`
-  
-  `sudo make install`
-  
-4. (Optional) Run the example program
-
-  `sudo ./morse_example`
-  
-  + Connect an LED to pin XIO-P7 and a button to LCD-VSYNC (with a pull-up resistor) for this example.
-  
-  `sudo ./toggle_example`
-  
-  + Connect an LED to pin XIO-P7, a button to XIO-P5, and another button to XIO-P3 for this example.
-  
 USAGE
------
 
 ### chip_gpio.h
 
@@ -187,7 +159,6 @@ To supplement the general libchipgpio interface, `chip_gpio_callback_manager.h` 
   + Like in the `chip_gpio.h` interface, you may supply a pin's name instead using `_n` variants of any function with the parameter `int pin`.
     
 BEST PRACTICES
---------------
 
 + Use `get_gpio_num(char* name)` to get a GPIO pin's number.
 
@@ -230,37 +201,17 @@ BEST PRACTICES
   + This library is dynamically linked so that is may be updated independently of your program (again to help provide forwards compatibility). Therefore, it must be installed on the user's system. I am looking into making a ppa to make this a more streamlined process, but until then, consider automating the cloning, building, and installing of this library as shown in the Building section. Or, at the very least, link to this git repository and inform the user of its necessity.
 
 + If you need to change the available pins on the CHIP (perhaps a new revision has come out and I have not yet updated the library, for example), edit the `chip_gpio_pin_defs.h` file. Theoretically, it should be possible to make all of the necessary changes by only editing that file (unless some seriously drastic changes have been made to the CHIP pinout). Once you’re done making edits, build and install your new version of the library.
+
+.SH AUTHOR
+
+Bryan Haley, bryanhaley.professional@gmail.com
   
-TODO
-----
-
-+ Add wrappers for interfacing with i2c, SPI, and PWM.
-  
-  + I'm currently awaiting a shipment containing an i2c/spi LCD screen to test with.
-
-  + In the future, I’ll also look into making expanding GPIO via an i2c GPIO chip as easy as possible (ideally, integrating with the libchipgpio interface as if they were on the CHIP itself). It would be especially useful for those using VGA/HDMI adapters.
-  
-+ Confirm support for the CHIP Pro.
-
-  + Theoritically it should already be supported, but I have no way of knowing for sure until I get one. There are probably a few pins on the Pro that don't exist on the CHIP, and currently I've only defined the CHIP's pins in `chip_gpio_pin_defs.h`.
-  
-+ Finished ~~Add a feature utilizing a separate thread to monitor specified GPIO pins to trigger callback functions when a value has changed.~~
-
-  +~~Callbacks on a separate thread would be much more convenient for polling things like buttons and switches.~~
-  
-BUY ME A COFFEE
----------------
-
-If you found this library useful at all, I'd appreciate it :-)
-
-[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/BryanHaley)
+.SH SEE ALSO
 
 OPEN SOURCE LICENSE
--------------------
 
 This software is dual-licensed (GPLv2 and SimplifiedBSD). Choose whichever works best for you.
 
-```
 GNU General Public License, version 2
 
 LIBCHIPGPIO - Dynamic library to interface with GPIO pins on the C.H.I.P. mini computer.
@@ -279,9 +230,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-```
 
-```
 BSD 2-Clause License
 
 Copyright (c) 2017, Bryan Haley
@@ -307,4 +256,3 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-```
